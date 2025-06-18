@@ -1,0 +1,73 @@
+@page "/checkout"
+@inject OrderState OrderState
+@inject HttpClient HttpClient
+@inject NavigationManager NavigationManager
+@using BlazingPizza.Services
+
+<div class="main">
+    @if (!OrderState.Order.Pizzas.Any())
+    {
+        <h2>No pizzas in your order</h2>
+        <NavLink class="btn btn-success" href="">Order some pizzas</NavLink>
+    }
+    else
+    {
+        <EditForm Model="OrderState.Order.DeliveryAddress" OnValidSubmit="PlaceOrder">
+            <div class="checkout-cols">
+                <div class="checkout-order-details">
+                    <h4>Review order</h4>
+                    <OrderReview Order="OrderState.Order" />
+                </div>
+
+                <div class="checkout-delivery-address">
+                    <h4>Deliver to...</h4>
+                    <AddressEditor Address="OrderState.Order.DeliveryAddress" />
+                </div>
+            </div>
+
+            <button class="checkout-button btn btn-warning" type="submit" disabled="@isSubmitting">
+                @if (isSubmitting)
+                {
+                    <text>Placing order...</text>
+                }
+                else
+                {
+                    <text>Place order</text>
+                }
+            </button>
+            <DataAnnotationsValidator />
+        </EditForm>
+    }
+</div>
+
+@code {
+    bool isSubmitting = false;
+
+    protected override void OnInitialized()
+    {
+        // Initialize the delivery address if it's null
+        if (OrderState.Order.DeliveryAddress == null)
+        {
+            OrderState.Order.DeliveryAddress = new Address();
+        }
+    }
+
+    async Task PlaceOrder()
+    {
+        isSubmitting = true;
+
+        try
+        {
+            var response = await HttpClient.PostAsJsonAsync("orders", OrderState.Order);
+            var newOrderId = await response.Content.ReadFromJsonAsync<int>();
+            OrderState.ResetOrder();
+            NavigationManager.NavigateTo($"myorders/{newOrderId}");
+        }
+        catch (Exception ex)
+        {
+            // Handle error
+            Console.WriteLine($"Error placing order: {ex.Message}");
+            isSubmitting = false;
+        }
+    }
+}

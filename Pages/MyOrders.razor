@@ -1,0 +1,119 @@
+@page "/myorders"
+@page "/myorders/{orderId:int}"
+@inject HttpClient HttpClient
+@inject NavigationManager NavigationManager
+@using BlazingPizza.Services
+
+<div class="main">
+    @if (orderId.HasValue)
+    {
+        <div class="order-details">
+            @if (orderWithStatus == null)
+            {
+                <div class="spinner-border text-warning" role="status">
+                    <span class="sr-only">Loading...</span>
+                </div>
+            }
+            else
+            {
+                <div class="track-order">
+                    <div class="track-order-title">
+                        <h2>Order placed @orderWithStatus.Order.CreatedTime.ToString("dd MMM yyyy")</h2>
+                        <p class="ml-auto mb-0">
+                            Status: <strong>@orderWithStatus.StatusText</strong>
+                        </p>
+                    </div>
+                    <div class="track-order-body">
+                        <div class="track-order-details">
+                            @foreach (var pizza in orderWithStatus.Order.Pizzas)
+                            {
+                                <p>
+                                    <strong>
+                                        @(pizza.Size)" @pizza.Special.Name
+                                        (@pizza.GetFormattedTotalPrice())
+                                    </strong>
+                                </p>
+                            }
+                        </div>
+                    </div>
+                    <div class="track-order-total">
+                        <p>Total: <span class="total-price">@orderWithStatus.Order.GetFormattedTotalPrice()</span></p>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+    else
+    {
+        <div class="orders-list">
+            <h1>Your orders</h1>
+            @if (ordersWithStatus == null)
+            {
+                <div class="spinner-border text-warning" role="status">
+                    <span class="sr-only">Loading...</span>
+                </div>
+            }
+            else if (!ordersWithStatus.Any())
+            {
+                <div class="no-orders">
+                    <h2>No orders placed</h2>
+                    <NavLink class="btn btn-success" href="">Order some pizzas</NavLink>
+                </div>
+            }
+            else
+            {
+                <div class="list-group orders-list">
+                    @foreach (var item in ordersWithStatus)
+                    {
+                        <div class="list-group-item">
+                            <div class="col">
+                                <h5>@item.Order.CreatedTime.ToString("dd MMM yyyy")</h5>
+                                <p>Status: <strong>@item.StatusText</strong></p>
+                                <p>
+                                    @foreach (var pizza in item.Order.Pizzas)
+                                    {
+                                        <span>@pizza.Size" @pizza.Special.Name</span>
+                                        @if (pizza != item.Order.Pizzas.Last())
+                                        {
+                                            <span>, </span>
+                                        }
+                                    }
+                                </p>
+                            </div>
+                            <div class="col-auto">
+                                <div class="order-total-price">@item.Order.GetFormattedTotalPrice()</div>
+                                <NavLink href="@($"myorders/{item.Order.OrderId}")" class="btn btn-success">
+                                    Track &gt;
+                                </NavLink>
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public int? OrderId { get; set; }
+
+    List<OrderWithStatus> ordersWithStatus = new();
+    OrderWithStatus orderWithStatus;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (OrderId.HasValue)
+        {
+            // Load specific order
+            orderWithStatus = await HttpClient.GetFromJsonAsync<OrderWithStatus>($"orders/{OrderId.Value}");
+        }
+        else
+        {
+            // Load all orders
+            ordersWithStatus = await HttpClient.GetFromJsonAsync<List<OrderWithStatus>>("orders") ?? new();
+        }
+    }
+
+    // Convert parameter to property for easier access
+    int? orderId => OrderId;
+}
